@@ -2,7 +2,7 @@ import numpy as np
 import scipy.spatial as spt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
-import lineintersect as li
+from .lineintersect import *
 
 def GetFirstPoint(dataset):
     ''' Returns index of first point, which has the lowest y value '''
@@ -102,7 +102,7 @@ def concaveHull(dataset, k, if_optimal=False):
                 j = 2
                 its = False
                 while ( (its==False) and (j<np.shape(hull)[0]-lastPoint) ): #number of hull pts - lastpoint >2, j
-                    its = li.doLinesIntersect(hull[step-1-1], cPoints[i-1],
+                    its = doLinesIntersect(hull[step-1-1], cPoints[i-1],
                             hull[step-1-j-1],hull[step-j-1])
                     j=j+1
         if ( its==True ):

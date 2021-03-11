@@ -46,7 +46,7 @@ if ifcopenshell.version < "0.6":
     from .. import get_supertype
 
 # add the functions of BIM calculation algorithm
-from functions import *
+from .functions import *
 
 
 class geometry_creation_signals(QtCore.QObject):
@@ -1708,6 +1708,6 @@ class CheckInput(QtWidgets.QDialog):
 
 if __name__ == "__main__":
     '''Load parameters and launch the GUI'''
-    logging.getLogger('matplotlib.font_manager').disabled = True
+    # logging.getLogger('matplotlib.font_manager').disabled = True
     application().start()
 

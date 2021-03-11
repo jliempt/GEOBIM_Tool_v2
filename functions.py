@@ -30,7 +30,7 @@ from OCC.Core.BRepBndLib import brepbndlib_Add, brepbndlib_AddOptimal, brepbndli
 from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakePrism
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Section
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeFace
-from OCC.OCCUtils.Topology import *
+from OCCUtils.Topology import *
 
 
 # # -------------database -------------
@@ -71,7 +71,7 @@ from itertools import cycle
 
 # ------------ overlap calculation -----
 import time
-from concavehull3 import concaveHull, PlotHull,plotPoints,PlotHullAndPoints
+from .concavehull3 import concaveHull, PlotHull,plotPoints,PlotHullAndPoints
 import os
 
 # ------------ yml parameters ----------
