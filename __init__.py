@@ -1,2 +1,2 @@
 # from geobim.main import *
-from geobim.application import *
+from GEOBIM_Tool.application import *

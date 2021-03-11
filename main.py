@@ -46,7 +46,7 @@ if ifcopenshell.version < "0.6":
     from .. import get_supertype
 
 # add the functions of BIM calculation algorithm
-from geobim.functions import *
+from GEOBIM_Tool.functions import *
 
 def init():
     print("++++++++++++++++++++++++++")
