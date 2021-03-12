@@ -1220,27 +1220,36 @@ class application(QtWidgets.QApplication):
         msg.show()
         msg.exec_()
 
-    def OverhangOneFloor(self):
+    def OverhangOneFloor(self, floornum = None):
 
         '''  get the overhang distance calculation of input floor'''
 
+        if floornum != None:
+            from_flask = True
+            floornum = int(floornum)
+            self.floornum = floornum
+
         if not self.floor_name_lst:
             return
-        floor_num, okPressed = QtWidgets.QInputDialog.getInt(self.window, 'Single Floor Overhang', 'FloorNumber=')
-        if okPressed:
-            self.floornum = floor_num
-        else:
-            return
-        if floor_num>=0 and floor_num < len(self.floor_elements_lst):
+
+        if not from_flask:
+            floornum, okPressed = QtWidgets.QInputDialog.getInt(self.window, 'Single Floor Overhang', 'FloorNumber=')
+            if okPressed:
+                self.floornum = floornum
+            else:
+                return
+
+        if floornum>=0 and floornum < len(self.floor_elements_lst):
             if self.base_overhang_obb_poly:
-                current_floor_obb_poly, current_obb_pt_lst, current_all_pt_lst= self.GetFloorOBBPoly_new(floor_num)
+                current_floor_obb_poly, current_obb_pt_lst, current_all_pt_lst= self.GetFloorOBBPoly_new(floornum)
             else:
                 self.base_overhang_obb_poly, self.base_obb_pt_lst, base_all_pt_lst = self.GetFloorOBBPoly_new(self.base_floor_num)
-                current_floor_obb_poly, current_obb_pt_lst, current_all_pt_lst= self.GetFloorOBBPoly_new(floor_num)
+                current_floor_obb_poly, current_obb_pt_lst, current_all_pt_lst= self.GetFloorOBBPoly_new(floornum)
             up_overhang, low_overhang = self.OBBPolyOverhang_new(self.base_obb_pt_lst,current_all_pt_lst,self.overhang_left)
             print("OverhangOneFloor done!")
-            print("floor name, ",self.floor_name_lst[floor_num], " up_overhang, ",up_overhang, "low_overhang, ", low_overhang)
-        else:
+            print("floor name, ",self.floor_name_lst[floornum], " up_overhang, ",up_overhang, "low_overhang, ", low_overhang)
+            return {"floorname": self.floor_name_lst[floornum], "up_overhang": up_overhang, "low_overhang": low_overhang}
+        elif not from_flask:
             print("message")
             msg = QtWidgets.QMessageBox()
             msg.setIcon(QtWidgets.QMessageBox.Critical)
@@ -1249,6 +1258,8 @@ class application(QtWidgets.QApplication):
             msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
             msg.show()
             msg.exec_()
+        else:
+            return "error"
 
     def OBBPolyOverhang_new(self, base_pt_lst, target_pt_lst, left_side=True ):
 
