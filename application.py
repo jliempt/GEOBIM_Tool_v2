@@ -1304,18 +1304,26 @@ class application(QtWidgets.QApplication):
             return
 
 
-    def footprintWKT(self):
+    def footprintWKT(self, floornum=None):
+
+        if floornum != None:
+            from_flask = True
+            floornum= int(floornum)
+
+        print("===========================")
+        print(len(self.floor_elements_lst))
 
         '''save the coordinates of footprint polygon into WKT file'''
 
         if not self.floor_name_lst:
             return
-        dialog = FootprintDialog()
-        if dialog.exec():
-            floornum,outputfile = dialog.getInputs()
-            floornum = int(floornum)
-        else:
-            return
+        if not from_flask:
+            dialog = FootprintDialog()
+            if dialog.exec():
+                floornum,outputfile = dialog.getInputs()
+                floornum = int(floornum)
+            else:
+                return
         if floornum >= 0 and floornum < len(self.floor_elements_lst):
             shapes_compound = self.canvas.floor_compound_shapes_lst[floornum]
             pts = GetOrientedBoundingBoxShapeCompound(shapes_compound, False)
@@ -1347,20 +1355,27 @@ class application(QtWidgets.QApplication):
                 result.append(pyocc_corners_list[idx])
             poly_footprint = Polygon(result)
             str_poly = str(poly_footprint)
-            f = open(outputfile,"w+")
-            f.write("name|wkt\n")
-            line_str = self.floor_name_lst[floornum]+"|"+str_poly
-            f.write(line_str)
-            f.close()
+            line_str = self.floor_name_lst[floornum] + "|" + str_poly
+
+            if not from_flask:
+                f = open(outputfile,"w+")
+                f.write("name|wkt\n")
+                f.write(line_str)
+                f.close()
+            else:
+                return line_str
         else:
-            print("message")
-            msg = QtWidgets.QMessageBox()
-            msg.setIcon(QtWidgets.QMessageBox.Critical)
-            msg.setText("Floor number is out of range")
-            msg.setWindowTitle("Floor number Error")
-            msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-            msg.show()
-            msg.exec_()
+            if not from_flask:
+                print("message")
+                msg = QtWidgets.QMessageBox()
+                msg.setIcon(QtWidgets.QMessageBox.Critical)
+                msg.setText("Floor number is out of range")
+                msg.setWindowTitle("Floor number Error")
+                msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+                msg.show()
+                msg.exec_()
+            else:
+                return "error"
 
     def GetHeight(self):
 
