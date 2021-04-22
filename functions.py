@@ -825,11 +825,11 @@ def EdgeErrorRemove(edges,distance):
     print("len of result edges,",len(edges),"len of outlier ed,",len(outlier_edges) )
     return edges, outlier_edges
 
-def GetStoreyOverlap(ground_poly, storey_poly_lst,floor_name_lst,filepath):
-    f =open(filepath,"w+")
+def GetStoreyOverlap(ground_poly, storey_poly_lst,floor_name_lst):
+    result = ""
     ground_area = ground_poly.area
     str1 = "ground polygon/base polygon,"+str(ground_poly.is_valid)+",area:"+str(float("{:.2f}".format(ground_poly.area)))+" square meter"
-    f.write(str1 + "\n")
+    result += str1 + "\n"
     for i in range(0,len(storey_poly_lst)):
         per_floor_poly = storey_poly_lst[i]
         sum=0
@@ -840,8 +840,8 @@ def GetStoreyOverlap(ground_poly, storey_poly_lst,floor_name_lst,filepath):
         #print(floor_name_lst[i],"overlap area,", sum,"overlap percentage:,",sum/ground_area )
         str2 = str(floor_name_lst[i])+",overlap area,"+str(float("{:.4f}".format(sum)))+" square meter,overlap percentage:"+str(float("{:.4f}".format(sum/ground_area*100.0)))
         print(str2)
-        f.write(str2+"\n")
-    f.close()
+        result += str2+"\n"
+    return result
 
 def GetConvexHullVertices(lst_x,lst_y, show_plt = True):
     a = np.array(lst_x)
