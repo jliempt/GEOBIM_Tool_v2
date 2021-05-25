@@ -155,13 +155,18 @@ class analyser():
 
         up_idx = up_overhang_lst.index(max(up_overhang_lst))
         low_idx = low_overhang_lst.index(max(low_overhang_lst))
-        result += "max overhang of north direction, floor: " + self.floor_name_lst[up_idx + self.base_floor_num]+ ",  overhang distance: " + str(max(up_overhang_lst)) +" meter.\n"
-        result += "max overhang of south direction, floor: " + self.floor_name_lst[low_idx + self.base_floor_num] + ",  overhang distance: " + str(max(low_overhang_lst)) + " meter.\n"
+        
+        result = {"north": {}, "south": {}}
+        result["north"]["floor"] = self.floor_name_lst[up_idx + self.base_floor_num]
+        result["north"]["distance"] = max(up_overhang_lst)
+        result["south"]["floor"] = self.floor_name_lst[low_idx + self.base_floor_num]
+        result["south"]["distance"] = max(low_overhang_lst)
 
         for i in range(len(up_overhang_lst)):
-            str_floor ="floor name: " + self.floor_name_lst[i + self.base_floor_num] +" north overhang "+  str(up_overhang_lst[i]) + " meter," +\
-                       "south overhang " + str(low_overhang_lst[i]) + " meter \n"
-            result += str_floor
+            floor_num = str(self.floor_name_lst[i + self.base_floor_num])
+            result[floor_num] = {}
+            result[floor_num]["north"] = up_overhang_lst[i]
+            result[floor_num]["south"] = low_overhang_lst[i]
 
         return result
         
@@ -306,9 +311,9 @@ class analyser():
             if float("{:.3f}".format(pnt.Z())) not in z_lst:
                 z_lst.append( float("{:.3f}".format(pnt.Z())))
             exp.Next()
-        str1 = "BIM height is " + str(max(z_lst)) + " meter"
+        res = str(max(z_lst))
         print("Max Z value is ", max(z_lst), " meter")
-        return str1
+        return res
     
     def GetBaseHeight(self, floornum):
         floornum = int(floornum)
@@ -327,7 +332,7 @@ class analyser():
         floornum = int(floornum)
         print(os.getcwd())
         yamlFilepath = "GEOBIM_Tool/Parameters/parameters.yaml"
-        result = ""
+        result = {}
 
         if not self.floor_name_lst:
             return
@@ -349,7 +354,7 @@ class analyser():
                 current_floor_poly_lst= self.GetFloorPolygon(floornum, yamlFilepath)
                 storey_poly_lst.append(current_floor_poly_lst)
 
-            result += GetStoreyOverlap(self.base_polygon,storey_poly_lst,floor_name_lst)
+            result = GetStoreyOverlap(self.base_polygon,storey_poly_lst,floor_name_lst)
             
         return result
     

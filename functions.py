@@ -826,10 +826,10 @@ def EdgeErrorRemove(edges,distance):
     return edges, outlier_edges
 
 def GetStoreyOverlap(ground_poly, storey_poly_lst,floor_name_lst):
-    result = ""
+    result = {}
     ground_area = ground_poly.area
-    str1 = "ground polygon/base polygon,"+str(ground_poly.is_valid)+",area:"+str(float("{:.2f}".format(ground_poly.area)))+" square meter"
-    result += str1 + "\n"
+    result["base_polygon_area"] =  float("{:.2f}".format(ground_poly.area))
+    
     for i in range(0,len(storey_poly_lst)):
         per_floor_poly = storey_poly_lst[i]
         sum=0
@@ -837,10 +837,10 @@ def GetStoreyOverlap(ground_poly, storey_poly_lst,floor_name_lst):
             print(type(poly),poly.is_valid,poly.area)
             a = ground_poly.intersection(poly)
             sum+=a.area
-        #print(floor_name_lst[i],"overlap area,", sum,"overlap percentage:,",sum/ground_area )
-        str2 = str(floor_name_lst[i])+",overlap area,"+str(float("{:.4f}".format(sum)))+" square meter,overlap percentage:"+str(float("{:.4f}".format(sum/ground_area*100.0)))
-        print(str2)
-        result += str2+"\n"
+        
+        result["overlap_area"] = float("{:.4f}".format(sum))
+        result["overlap_percentage"] = float("{:.4f}".format(sum/ground_area*100.0))
+
     return result
 
 def GetConvexHullVertices(lst_x,lst_y, show_plt = True):

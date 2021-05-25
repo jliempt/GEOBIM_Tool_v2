@@ -8,7 +8,7 @@ import time
 import operator
 import functools
 import multiprocessing
-import logging
+# import logging
 from collections import defaultdict, Iterable, OrderedDict
 
 # check pyqt version and import pyqt library
