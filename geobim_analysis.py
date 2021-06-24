@@ -14,19 +14,6 @@ from collections import defaultdict, Iterable, OrderedDict
 
 # add python-occ library
 import OCC.Core.AIS
-try:
-    from OCC.Display.pyqt5Display import qtViewer3d
-except BaseException:
-    import OCC.Display
-    try:
-        import OCC.Display.backend
-    except BaseException:
-        pass
-    try:
-        OCC.Display.backend.get_backend("qt-pyqt5")
-    except BaseException:
-        OCC.Display.backend.load_backend("qt-pyqt5")
-    from OCC.Display.qtDisplay import qtViewer3d
 
 # add ifcopenshell library
 import ifcopenshell
@@ -322,8 +309,7 @@ class analyser():
 
         print("Floor name, ", self.floor_name_lst[floornum] )
         top_height = float("{:.3f}".format(self.storeyElevation_lst[floornum+1]))
-
-        return "Base height is, "+str(top_height)+ " meter\n"+ "Floor name is ,"+self.floor_name_lst[floornum]
+        return( {"Floor name": self.floor_name_lst[floornum], "height": top_height} )
     
     def OverlapOneFloor(self, floornum):
         
@@ -691,3 +677,15 @@ class analyser():
         self.s = float(x)
         self.dbscan = float(y)
         self.k = float(z)
+        
+    def getGeoref(self):
+        f = next(iter(self.files.values()))
+        site = f.by_type('IfcSite')[0]
+        object_placement = site[5]
+        relative_placement = object_placement[1]
+        location = relative_placement[0]
+        ref_direction = relative_placement[2]
+        if location != None and ref_direction != None:
+            return {"location": location[0], "direction": ref_direction[0]}
+        else:
+            None
