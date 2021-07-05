@@ -122,6 +122,10 @@ class analyser():
         else:
             return "error"
         
+    def overhangRoads(self, guidelines, ifc_file):
+        res = run_overhang_check(guidelines, self.floor_elements_lst, self.floor_name_lst, ifc_file)
+        return res
+        
     def OverhangAll_new(self):
 
         ''' new algorithm for overhang distance calculation of all floors, result save in the folder  ./result/overhang_all.txt'''
