@@ -26,7 +26,7 @@ if ifcopenshell.version < "0.6":
 
 # add the functions of BIM calculation algorithm
 from .functions import *
-
+from .functions_nad import *
 
 
 class analyser():
@@ -644,6 +644,27 @@ class analyser():
         pyocc_corners_list = ptsReorder(pyocc_corners_list)
         poly_corners = Polygon(pyocc_corners_list)
         return poly_corners, pyocc_corners_list, all_pt_lst
+    
+    def parkingCalculate(self, ifc_path, zone):
+
+        ''' Calculte the needed parking units number according to the regulation of municipality '''
+
+        print("Parking Units Calculation starts!")
+
+        ifc_file = ifcopenshell.open(ifc_path)
+        ifcSpaces = ifc_file.by_type('ifcspace')
+        # file_parking = open(outputfile, "w+")
+
+        count_40, count_40_65, count_65_85, count_85_120, count_120_plus = GetIfcSpaceType(ifcSpaces)
+        minpp = GetMinParkingUnitNum(count_40, count_40_65, count_65_85, count_85_120, count_120_plus, zone.upper())
+        str_apartment = "number of Apartments, \nless 40 square meter: " + str(
+            count_40) + "\n40 to 65 square meter: " + str(count_40_65) + "\n65 to 85 square meter: " + str(
+            count_65_85) + "\n85 to 120 square meter: " + str(count_85_120) + "\nmore than 120 square meter: " + str(
+            count_120_plus) + "\n"
+        str_zone = "Zone type: Zone A Metropolitan area\n"
+        str_minpp = "min parking units to provide: " + str(minpp)
+        
+        return str_apartment + str_zone + str_minpp
     
     def setBaseFloornum(self, floornum):
         floornum = int(floornum)
