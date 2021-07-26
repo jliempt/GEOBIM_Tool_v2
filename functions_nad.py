@@ -162,18 +162,33 @@ def check_overhang(groundfloor, sides_to_road, sides, roads_name, guideline):
             check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
                                 "Overhang: " + "No overhang", side_line_2d.wkt)
         else:
-            for point in outside_line.coords:
-                pt = Point(point)
-                dist_to_gf = groundfloor.exterior.distance(pt)
-                if dist_to_gf >= check_dist:
-                    check_dist = dist_to_gf
-                    furthest_pt = pt
-            if admissible_overhang > check_dist:
-                check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
-                                    "Overhang: " + str(check_dist), side_line_2d.wkt)
+            if outside_line.type == 'MultiLineString':
+                for line in outside_line:
+                    for point in line.coords:
+                        pt = Point(point)
+                        dist_to_gf = groundfloor.exterior.distance(pt)
+                        if dist_to_gf >= check_dist:
+                            check_dist = dist_to_gf
+                            furthest_pt = pt
+                    if admissible_overhang > check_dist:
+                        check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
+                                            "Overhang: " + str(check_dist), side_line_2d.wkt)
+                    else:
+                        check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
+                                            "Overhang: " + str(check_dist), side_line_2d.wkt)
             else:
-                check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
-                                    "Overhang: " + str(check_dist), side_line_2d.wkt)
+                for point in outside_line.coords:
+                    pt = Point(point)
+                    dist_to_gf = groundfloor.exterior.distance(pt)
+                    if dist_to_gf >= check_dist:
+                        check_dist = dist_to_gf
+                        furthest_pt = pt
+                if admissible_overhang > check_dist:
+                    check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
+                                        "Overhang: " + str(check_dist), side_line_2d.wkt)
+                else:
+                    check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
+                                        "Overhang: " + str(check_dist), side_line_2d.wkt)
     return check
 
 
@@ -187,11 +202,17 @@ def get_geometry_unchecked_sides(box, sides_facing_roads):
     return sides_not_facing_roads
 
 
-def inscribed_r(points):
-    pass
+def inscribed_r(convex_tr):
+    a_00 = convex_tr[:, 1] - convex_tr[:, 0]
+    b_00 = convex_tr[:, 2] - convex_tr[:, 0]
+    c_00 = convex_tr[:, 2] - convex_tr[:, 1]
+    area_2 = np.linalg.norm(np.cross(a_00, b_00), axis=1)
+    perim = np.linalg.norm(a_00, axis=1) + np.linalg.norm(b_00, axis=1) + np.linalg.norm(c_00, axis=1)
+    r = area_2 / perim
+    return r
 
 
-'''def alpha_shape_3D(pts, alpha):
+def alpha_shape_3D(pts, alpha):
     """
     Compute the alpha shape (concave hull) of a set of 3D points.
     Parameters:
@@ -208,14 +229,14 @@ def inscribed_r(points):
     all_ = pts[all_tr_00]
 
     # check which triangles of the convex hull are less than alpha
-    # r = inscribed_r(all_)
+    r = inscribed_r(all_)
 
     tr_check_i = all_tr_00[np.where(r < alpha)]
     # tr_sort_i = tr_check_i[np.arange(np.shape(tr_check_i)[0])[:, np.newaxis], np.argsort(tr_check_i)]
     tr_chosen, count = np.unique(tr_check_i, axis=0, return_counts=True)
     hull_tr = tr_chosen[np.where(count == 1)]
 
-    return hull_tr'''
+    return hull_tr
 
 
 def read_height_points(shape_file):
@@ -259,52 +280,11 @@ def check_height(entrance_height, building_height, parcel_heights, maximum_allow
     height_difference = entrance_height - max_parcel_height
     height_to_check = building_height + height_difference
     if height_to_check <= maximum_allowed_height:
-        return "Pass", "Admissible height: " + str(maximum_allowed_height), "Height: " + str(height_to_check)
+        return ("Pass", "Admissible height: " + str(maximum_allowed_height), "Height: " + str(height_to_check)), \
+               max_parcel_height
     else:
-        return "Fail", "Admissible height: " + str(maximum_allowed_height), "Height: " + str(height_to_check)
-
-
-def plot_opaque_cube(x, y, z, dx, dy, dz, polygon, box, sides_facing_roads, checked_results, road_names):
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1, projection='3d')
-    poly_x, poly_y = polygon.exterior.xy
-    plt.plot(poly_x, poly_y)
-
-    """plt.plot([0, 2], [0, 0], color='green')
-    plt.plot([2, 2], [0, 1], color='black')
-    plt.plot([0, 0], [0, 1], color='black')
-    plt.plot([0, 2], [1, 1], color='red')"""
-    for i, side in enumerate(box.vertical_sides):
-        pt_00 = side[0][:2]
-        pt_01 = side[1][:2]
-        if i in sides_facing_roads.keys():
-            if checked_results[road_names[sides_facing_roads[i]]][0] == 'Pass':
-                plt.plot([pt_00[0], pt_01[0]], [pt_00[1], pt_01[1]], color='green')
-            else:
-                plt.plot([pt_00[0], pt_01[0]], [pt_00[1], pt_01[1]], color='red')
-        else:
-            plt.plot([pt_00[0], pt_01[0]], [pt_00[1], pt_01[1]], color='black')
-
-    xx = np.linspace(x, x + dx, 2)
-    yy = np.linspace(y, y + dy, 2)
-    zz = np.linspace(z, z + dz, 2)
-
-    xx, yy = np.meshgrid(xx, yy)
-
-    ax.plot_surface(xx, yy, np.array([[z], [z]]), cmap='gray')
-    ax.plot_surface(xx, yy, np.array([[z + dz], [z + dz]]), cmap='gray')
-
-    yy, zz = np.meshgrid(yy, zz)
-    ax.plot_surface(x, yy, zz, cmap='gray')
-    ax.plot_surface(x + dx, yy, zz, cmap='gray')
-
-    xx, zz = np.meshgrid(xx, zz)
-    ax.plot_surface(xx, y, zz, cmap='gray')
-    ax.plot_surface(xx, y + dy, zz, cmap='gray')
-    # ax.set_xlim3d(-dx, dx*2, 20)
-    # ax.set_xlim3d(-dx, dx*2, 20)
-    # ax.set_xlim3d(-dx, dx*2, 20)
-    plt.show()
+        return ("Fail", "Admissible height: " + str(maximum_allowed_height), "Height: " + str(height_to_check)), \
+               max_parcel_height
 
 
 def get_gf_floor_idx(storeys_names):
@@ -377,6 +357,27 @@ def get_parcel(centroid, parcels):
     return chosen_parcel
 
 
+def get_boundary_z_min_z_max(elements, origin_pt, true_n):
+    lst_x, lst_y, lst_z = GetAllCoordinates(elements)
+    points_2d = np.array(list(zip(lst_x, lst_y)))
+    obb_2d = GetNumpyOBB(points_2d, show_plot=False)
+    z_min = min(lst_z) + origin_pt[2]
+    z_max = max(lst_z) + origin_pt[2]
+    bb_2d = [(min(lst_x), min(lst_y)), (max(lst_x), min(lst_y)), (max(lst_x), max(lst_y)), (min(lst_x), max(lst_y))]
+    bb_2d_georef = []
+    for pt_2d in bb_2d:
+        pt_2d_georef = get_georeferenced_point(pt_2d, origin_pt, true_n)
+        bb_2d_georef.append(pt_2d_georef)
+    obb_2d_georef = []
+    for pt_2d in obb_2d:
+        pt_2d_georef = get_georeferenced_point(pt_2d, origin_pt, true_n)
+        obb_2d_georef.append(pt_2d_georef)
+    if Polygon(obb_2d_georef).area > Polygon(bb_2d_georef).area:
+        return bb_2d_georef, z_min, z_max
+    else:
+        return obb_2d_georef, z_min, z_max
+
+
 def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, ifc_file, storey_number=None):
     # extract georeference from file
     origin_pt, true_n = get_georeference(ifc_file)
@@ -385,19 +386,8 @@ def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, ifc_
     #all_storeys_elements, all_storeys_names = GetElementsByStorey(file)
     # get GF
     gf_floor_idx = get_gf_floor_idx(all_storeys_names)
-    obb_gf = GetOrientedBoundingBox(all_storeys_elements[gf_floor_idx])
-    x_max, x_min, y_max, y_min, z_max, z_min = GetCornerMaxMin(obb_gf[3], obb_gf[4])
-    z_min = z_min + origin_pt[2]
-    z_max = z_max + origin_pt[2]
-    corner_00 = [x_min, y_min]
-    corner_01 = [x_max, y_min]
-    corner_02 = [x_max, y_max]
-    corner_03 = [x_min, y_max]
-    corner_00 = get_georeferenced_point(np.array(corner_00), origin_pt, true_n)
-    corner_01 = get_georeferenced_point(np.array(corner_01), origin_pt, true_n)
-    corner_02 = get_georeferenced_point(np.array(corner_02), origin_pt, true_n)
-    corner_03 = get_georeferenced_point(np.array(corner_03), origin_pt, true_n)
-    gf = Polygon([corner_00, corner_01, corner_02, corner_03])
+    gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
+    gf = Polygon(gf)
     # Get the parcel of project
     centroid_gf = gf.centroid
     parcels = shapefile_to_shapely_parcels("/www/models-preloaded/BRK_SelectieCentrum.shp")
@@ -425,22 +415,19 @@ def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, ifc_
         # if i == 4:
         #    break
         # print(i)
-        obb = GetOrientedBoundingBox(storey_elements)
-        x_max, x_min, y_max, y_min, z_max, z_min = GetCornerMaxMin(obb[3], obb[4])
-        z_min = z_min + origin_pt[2]
-        z_max = z_max + origin_pt[2]
-        corner_00 = [x_min, y_min]
-        corner_01 = [x_max, y_min]
-        corner_02 = [x_max, y_max]
-        corner_03 = [x_min, y_max]
-        corner_00 = get_georeferenced_point(np.array(corner_00), origin_pt, true_n)
-        corner_01 = get_georeferenced_point(np.array(corner_01), origin_pt, true_n)
-        corner_02 = get_georeferenced_point(np.array(corner_02), origin_pt, true_n)
-        corner_03 = get_georeferenced_point(np.array(corner_03), origin_pt, true_n)
-        simplified_box = OrientedBoundingBox([corner_00[0], corner_00[1], z_min], [corner_01[0], corner_01[1], z_min],
-                                             [corner_02[0], corner_02[1], z_min], [corner_03[0], corner_03[1], z_min],
-                                             [corner_00[0], corner_00[1], z_max], [corner_01[0], corner_01[1], z_max],
-                                             [corner_02[0], corner_02[1], z_max], [corner_03[0], corner_03[1], z_max])
+        storey, z_min_s, z_max_s = get_boundary_z_min_z_max(storey_elements, origin_pt, true_n)
+        corner_00 = storey[0]
+        corner_01 = storey[1]
+        corner_02 = storey[2]
+        corner_03 = storey[3]
+        simplified_box = OrientedBoundingBox([corner_00[0], corner_00[1], z_min_s],
+                                             [corner_01[0], corner_01[1], z_min_s],
+                                             [corner_02[0], corner_02[1], z_min_s],
+                                             [corner_03[0], corner_03[1], z_min_s],
+                                             [corner_00[0], corner_00[1], z_max_s],
+                                             [corner_01[0], corner_01[1], z_max_s],
+                                             [corner_02[0], corner_02[1], z_max_s],
+                                             [corner_03[0], corner_03[1], z_max_s])
         sides_roads = side_to_road(adjacent_roads, simplified_box)
         check = check_overhang(gf, sides_roads, simplified_box.vertical_sides, name_roads, guidelines)
         rogue_sides = get_geometry_unchecked_sides(simplified_box, sides_roads)
@@ -458,18 +445,9 @@ def run_height_check(guidelines, all_storeys_elements, all_storeys_names, ifc_fi
     origin_pt, true_n = get_georeference(ifc_file)
     # get GF
     gf_floor_idx = get_gf_floor_idx(all_storeys_names)
-    obb_gf = GetOrientedBoundingBox(all_storeys_elements[gf_floor_idx])
-    x_max, x_min, y_max, y_min, z_max, z_min = GetCornerMaxMin(obb_gf[3], obb_gf[4])
-    entrance_height = z_min + origin_pt[2]
-    corner_00 = [x_min, y_min]
-    corner_01 = [x_max, y_min]
-    corner_02 = [x_max, y_max]
-    corner_03 = [x_min, y_max]
-    corner_00 = get_georeferenced_point(np.array(corner_00), origin_pt, true_n)
-    corner_01 = get_georeferenced_point(np.array(corner_01), origin_pt, true_n)
-    corner_02 = get_georeferenced_point(np.array(corner_02), origin_pt, true_n)
-    corner_03 = get_georeferenced_point(np.array(corner_03), origin_pt, true_n)
-    gf = Polygon([corner_00, corner_01, corner_02, corner_03])
+    gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
+    gf = Polygon(gf)
+    z_min = z_min + origin_pt[2]
     # Get the parcel of project
     centroid_gf = gf.centroid
     parcels = shapefile_to_shapely_parcels("/www/models-preloaded/BRK_SelectieCentrum.shp")
@@ -478,13 +456,12 @@ def run_height_check(guidelines, all_storeys_elements, all_storeys_names, ifc_fi
     points, heights = read_height_points("/www/models-preloaded/Peil_punten.shp")
     parcel_heights = get_height_parcel(parcel_points, points, heights)
     # get last floor
-    obb_last_floor = GetOrientedBoundingBox(all_storeys_elements[-1])
-    x_max, x_min, y_max, y_min, z_max, z_min = GetCornerMaxMin(obb_last_floor[3], obb_last_floor[4])
-    z_max = z_max + origin_pt[2]
-    building_height = z_max - entrance_height
-    height_check = check_height(entrance_height, building_height, parcel_heights, guidelines)
+    lst_x_last, lst_y_last, lst_z_last = GetAllCoordinates(all_storeys_elements[-1])
+    z_max = max(lst_z_last) + origin_pt[2]
+    building_height = z_max - z_min
+    height_check, highest_road = check_height(z_min, building_height, parcel_heights, guidelines)
     buffer_gf = gf.buffer(20)
-    return height_check, guidelines, buffer_gf.wkt  # make sure that guidelines is the maximum allowed height
+    return height_check, guidelines, highest_road, buffer_gf.wkt  # make sure that guidelines is the maximum allowed height
 
 
 def run_boundary_check(all_storeys_elements, all_storeys_names, ifc_file):
@@ -492,17 +469,8 @@ def run_boundary_check(all_storeys_elements, all_storeys_names, ifc_file):
     origin_pt, true_n = get_georeference(ifc_file)
     # get GF
     gf_floor_idx = get_gf_floor_idx(all_storeys_names)
-    obb_gf = GetOrientedBoundingBox(all_storeys_elements[gf_floor_idx])
-    x_max, x_min, y_max, y_min, z_max, z_min = GetCornerMaxMin(obb_gf[3], obb_gf[4])
-    corner_00 = [x_min, y_min]
-    corner_01 = [x_max, y_min]
-    corner_02 = [x_max, y_max]
-    corner_03 = [x_min, y_max]
-    corner_00 = get_georeferenced_point(np.array(corner_00), origin_pt, true_n)
-    corner_01 = get_georeferenced_point(np.array(corner_01), origin_pt, true_n)
-    corner_02 = get_georeferenced_point(np.array(corner_02), origin_pt, true_n)
-    corner_03 = get_georeferenced_point(np.array(corner_03), origin_pt, true_n)
-    gf = Polygon([corner_00, corner_01, corner_02, corner_03])
+    gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
+    gf = Polygon(gf)
     # Get the parcel of project
     centroid_gf = gf.centroid
     parcels = shapefile_to_shapely_parcels("/www/models-preloaded/BRK_SelectieCentrum.shp")
