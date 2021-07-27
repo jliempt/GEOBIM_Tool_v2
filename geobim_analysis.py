@@ -56,11 +56,14 @@ class analyser():
         self.base_floor_num = 1
         self.overhang_left = True
         self.storeyElevation_lst=[]
-        # Georeference parameters
+        # Georeference parameters from user
         self.addGeoreference = False
         self.georeference_x = 0.0
         self.georeference_y = 0.0
         self.georeference_z = 0.0
+        # Georeference parameters from IFC file
+        self.location = (0.0, 0.0, 0.0)
+        self.direction = (0.0, 0.0, 0.0)
     
     def load(self, path):
         fn = path.split("/")[-1].split(".")[0]
@@ -71,7 +74,11 @@ class analyser():
         #Run the floor segementation when loading
         self.floor_elements_lst, self.floor_name_lst = GetElementsByStorey(f)
         self.files[fn] = f
-        
+
+        # Add the georeferencing from the IFC file
+        self.location = self.getGeoref()["location"]
+        self.direction = self.getGeoref()["direction"]
+
         settings = ifcopenshell.geom.settings()
         settings.set(settings.USE_PYTHON_OPENCASCADE, True)
         for i in range(len(self.floor_elements_lst)):
@@ -122,8 +129,17 @@ class analyser():
         else:
             return "error"
         
-    def overhangRoads(self, guidelines, ifc_file):
-        res = run_overhang_check(guidelines, self.floor_elements_lst, self.floor_name_lst, ifc_file)
+    def overhangRoads(self, guidelines, floor_number=None):
+        res = run_overhang_check(guidelines, self.floor_elements_lst, self.floor_name_lst, self.location,
+                                 self.direction, floor_number)
+        return res
+
+    def heighCheck(self, guidelines):
+        res = run_height_check(guidelines, self.floor_elements_lst, self.floor_name_lst, self.location, self.direction)
+        return res
+
+    def boundaryCheck(self):
+        res = run_boundary_check(self.floor_elements_lst, self.floor_name_lst, self.location, self.direction)
         return res
         
     def OverhangAll_new(self):

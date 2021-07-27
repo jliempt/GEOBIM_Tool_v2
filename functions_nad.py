@@ -325,8 +325,8 @@ def get_georeference(ifc_file):
 
 
 def get_angle_from_true_north(true_north):
-    origin = np.array([0, 0])
-    y = np.array([0, 1])
+    origin = np.array([0, 0, 0])
+    y = np.array([0, 1, 0])
     origin_north = true_north - origin
     origin_y = y - origin
     cosine_angle = np.dot(origin_north, origin_y) / (np.linalg.norm(origin_north) * np.linalg.norm(origin_y))
@@ -335,7 +335,7 @@ def get_angle_from_true_north(true_north):
 
 
 def get_georeferenced_point(point, origin_point, true_north):
-    rotation_angle = -get_angle_from_true_north(true_north)
+    rotation_angle = -get_angle_from_true_north(np.array(true_north))
     newX = point[0] * np.cos(rotation_angle) - point[1] * np.sin(rotation_angle)
     newY = point[0] * np.sin(rotation_angle) + point[1] * np.cos(rotation_angle)
     rotated_point = np.array([newX, newY])
@@ -378,12 +378,7 @@ def get_boundary_z_min_z_max(elements, origin_pt, true_n):
         return obb_2d_georef, z_min, z_max
 
 
-def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, ifc_file, storey_number=None):
-    # extract georeference from file
-    origin_pt, true_n = get_georeference(ifc_file)
-    # Building: IFC
-    #file = open_ifc_file(ifc_file)
-    #all_storeys_elements, all_storeys_names = GetElementsByStorey(file)
+def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, origin_pt, true_n, storey_number):
     # get GF
     gf_floor_idx = get_gf_floor_idx(all_storeys_names)
     gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
@@ -438,11 +433,7 @@ def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, ifc_
     return lst_all_checks, lst_all_rogues
 
 
-def run_height_check(guidelines, all_storeys_elements, all_storeys_names, ifc_file):
-    # get roads guidelines
-    # guide_lines = guidelines['height']
-    # extract georeference from file
-    origin_pt, true_n = get_georeference(ifc_file)
+def run_height_check(guidelines, all_storeys_elements, all_storeys_names, origin_pt, true_n,):
     # get GF
     gf_floor_idx = get_gf_floor_idx(all_storeys_names)
     gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
@@ -464,9 +455,7 @@ def run_height_check(guidelines, all_storeys_elements, all_storeys_names, ifc_fi
     return height_check, guidelines, highest_road, buffer_gf.wkt  # make sure that guidelines is the maximum allowed height
 
 
-def run_boundary_check(all_storeys_elements, all_storeys_names, ifc_file):
-    # extract georeference from file
-    origin_pt, true_n = get_georeference(ifc_file)
+def run_boundary_check(all_storeys_elements, all_storeys_names, origin_pt, true_n,):
     # get GF
     gf_floor_idx = get_gf_floor_idx(all_storeys_names)
     gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
