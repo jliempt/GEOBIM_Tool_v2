@@ -134,7 +134,7 @@ class analyser():
                                  self.direction, floor_number)
         return res
 
-    def heighCheck(self, guidelines):
+    def heightCheck(self, guidelines):
         res = run_height_check(guidelines, self.floor_elements_lst, self.floor_name_lst, self.location, self.direction)
         return res
 
@@ -725,8 +725,10 @@ class analyser():
         object_placement = site[5]
         relative_placement = object_placement[1]
         location = relative_placement[0]
+        location_str = str(location).split('(')[3].split(',')
+        location_float = (float(location_str[0]), float(location_str[1]), float(location_str[2][:-3]))
         ref_direction = relative_placement[2]
         if location != None and ref_direction != None:
-            return {"location": location[0], "direction": ref_direction[0]}
+            return {"location": location_float, "direction": ref_direction[0]}
         else:
             None

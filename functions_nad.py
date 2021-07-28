@@ -268,7 +268,7 @@ def get_height_parcel(parcel_points, points, heights):
     point_tree = cKDTree(points)
     # distance and index to nearest point
     dd, ii = point_tree.query(parcel_points, k=1)
-    parcel_heights = heights[ii]
+    parcel_heights = np.array(heights)[ii]
     return parcel_heights
 
 
@@ -335,7 +335,7 @@ def get_angle_from_true_north(true_north):
 
 
 def get_georeferenced_point(point, origin_point, true_north):
-    rotation_angle = -get_angle_from_true_north(np.array(true_north))
+    rotation_angle = -get_angle_from_true_north(np.array(true_north)) - 0.2
     newX = point[0] * np.cos(rotation_angle) - point[1] * np.sin(rotation_angle)
     newY = point[0] * np.sin(rotation_angle) + point[1] * np.cos(rotation_angle)
     rotated_point = np.array([newX, newY])
