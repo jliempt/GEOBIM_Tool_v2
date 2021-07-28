@@ -63,7 +63,7 @@ class analyser():
         self.georeference_z = 0.0
         # Georeference parameters from IFC file
         self.location = (0.0, 0.0, 0.0)
-        self.direction = (0.0, 0.0, 0.0)
+        self.direction = (0.0, 1.0, 0.0)
     
     def load(self, path):
         fn = path.split("/")[-1].split(".")[0]
@@ -725,10 +725,8 @@ class analyser():
         object_placement = site[5]
         relative_placement = object_placement[1]
         location = relative_placement[0]
-        location_str = str(location).split('(')[3].split(',')
-        location_float = (float(location_str[0]), float(location_str[1]), float(location_str[2][:-3]))
         ref_direction = relative_placement[2]
         if location != None and ref_direction != None:
-            return {"location": location_float, "direction": ref_direction[0]}
+            return {"location": (location[0], location[1], location[2]), "direction": ref_direction[0]}
         else:
             None
