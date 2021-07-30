@@ -324,18 +324,8 @@ def get_georeference(ifc_file):
     return np.array(origin_point), np.array(true_north)
 
 
-def get_angle_from_true_north(true_north):
-    origin = np.array([0, 0, 0])
-    y = np.array([0, 1, 0])
-    origin_north = true_north - origin
-    origin_y = y - origin
-    cosine_angle = np.dot(origin_north, origin_y) / (np.linalg.norm(origin_north) * np.linalg.norm(origin_y))
-    angle = np.arccos(cosine_angle)
-    return np.degrees(angle)
-
-
 def get_georeferenced_point(point, origin_point, true_north):
-    rotation_angle = -get_angle_from_true_north(np.array(true_north)) - 0.2
+    rotation_angle = np.arctan2(true_north[1], true_north[0])
     newX = point[0] * np.cos(rotation_angle) - point[1] * np.sin(rotation_angle)
     newY = point[0] * np.sin(rotation_angle) + point[1] * np.cos(rotation_angle)
     rotated_point = np.array([newX, newY])
