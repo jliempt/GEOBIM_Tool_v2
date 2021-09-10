@@ -732,7 +732,7 @@ class analyser():
         self.s = float(s)
         self.dbscan = float(dbscan)
         self.k = float(k)
-        
+
     def getGeoref(self):
         f = next(iter(self.files.values()))
         site = f.by_type('IfcSite')[0]

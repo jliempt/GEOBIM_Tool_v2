@@ -838,4 +838,4 @@ def run_overhang_check_alpha_shape(guidelines, all_storeys_elements, all_storeys
                                         "Overhang: " + str(dist_to_check))
         lst_all_checks.append(check)
         i += 1
-    return lst_all_checks
+    return {"all_checks" : lst_all_checks}
