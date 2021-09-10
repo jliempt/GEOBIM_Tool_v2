@@ -24,9 +24,9 @@ def check_boundary(parcel_limit, bldg_limit):
     """
     check = parcel_limit.contains(bldg_limit)
     if check:
-        return "Pass", parcel_limit.wkt, bldg_limit.wkt
+        return { "result": "Pass", "parcel_limit": parcel_limit.wkt, "bldg_limit": bldg_limit.wkt }
     else:
-        return "Fail", parcel_limit.wkt, bldg_limit.wkt
+        return { "result": "Fail", "parcel_limit": parcel_limit.wkt,"bldg_limit": bldg_limit.wkt }
 
 
 def shapefile_to_shapely_roads(shape_file):
@@ -161,7 +161,7 @@ def check_overhang(groundfloor, sides_to_road, sides, roads_name, guideline):
         admissible_overhang = guideline[road_name]
         if outside_line.wkt == 'LINESTRING EMPTY':
             check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
-                                "Overhang: " + "No overhang", side_line_2d.wkt)
+                                "Overhang: " + "No overhang", side_line_2d.wkt, road_id)
         else:
             if outside_line.type == 'MultiLineString':
                 for line in outside_line:
@@ -173,10 +173,10 @@ def check_overhang(groundfloor, sides_to_road, sides, roads_name, guideline):
                             furthest_pt = pt
                     if admissible_overhang > check_dist:
                         check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
-                                            "Overhang: " + str(check_dist), side_line_2d.wkt)
+                                            "Overhang: " + str(check_dist), side_line_2d.wkt, road_id)
                     else:
                         check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
-                                            "Overhang: " + str(check_dist), side_line_2d.wkt)
+                                            "Overhang: " + str(check_dist), side_line_2d.wkt, road_id)
             else:
                 for point in outside_line.coords:
                     pt = Point(point)
@@ -186,10 +186,10 @@ def check_overhang(groundfloor, sides_to_road, sides, roads_name, guideline):
                         furthest_pt = pt
                 if admissible_overhang > check_dist:
                     check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
-                                        "Overhang: " + str(check_dist), side_line_2d.wkt)
+                                        "Overhang: " + str(check_dist), side_line_2d.wkt, road_id)
                 else:
                     check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
-                                        "Overhang: " + str(check_dist), side_line_2d.wkt)
+                                        "Overhang: " + str(check_dist), side_line_2d.wkt, road_id)
     return check
 
 
@@ -421,7 +421,7 @@ def run_overhang_check(guidelines, all_storeys_elements, all_storeys_names, orig
         lst_all_rogues.append(rogue_sides)
         # i+=1
 
-    return lst_all_checks, lst_all_rogues
+    return { "all_checks": lst_all_checks, "rogue_checks": lst_all_rogues }
 
 
 def run_height_check(guidelines, all_storeys_elements, all_storeys_names, origin_pt, true_n,):
@@ -443,7 +443,7 @@ def run_height_check(guidelines, all_storeys_elements, all_storeys_names, origin
     building_height = z_max - z_min
     height_check, highest_road = check_height(z_min, building_height, parcel_heights, guidelines)
     buffer_gf = gf.buffer(20)
-    return height_check, guidelines, highest_road, buffer_gf.wkt  # make sure that guidelines is the maximum allowed height
+    return { "height_check": height_check, "guidelines": guidelines, "highest_road": highest_road, "wkt": buffer_gf.wkt }  # make sure that guidelines is the maximum allowed height
 
 
 def run_boundary_check(all_storeys_elements, all_storeys_names, origin_pt, true_n,):

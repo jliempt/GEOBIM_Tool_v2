@@ -76,8 +76,10 @@ class analyser():
         self.files[fn] = f
 
         # Add the georeferencing from the IFC file
-        self.location = self.getGeoref()["location"]
-        self.direction = self.getGeoref()["direction"]
+        georef = self.getGeoref()
+        if georef != None:
+            self.location = georef["location"]
+            self.direction = georef["direction"]
 
         settings = ifcopenshell.geom.settings()
         settings.set(settings.USE_PYTHON_OPENCASCADE, True)
@@ -725,12 +727,12 @@ class analyser():
             return
         print(self.overhang_left)
 
-    def setOverlapParameters(self, x, y, z):
+    def setOverlapParameters(self, s, dbscan, k):
 
-        self.s = float(x)
-        self.dbscan = float(y)
-        self.k = float(z)
-
+        self.s = float(s)
+        self.dbscan = float(dbscan)
+        self.k = float(k)
+        
     def getGeoref(self):
         f = next(iter(self.files.values()))
         site = f.by_type('IfcSite')[0]
