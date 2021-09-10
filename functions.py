@@ -31,6 +31,8 @@ from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakePrism
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Section
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeFace
 from OCCUtils.Topology import *
+from OCC.Core.TopLoc import *
+from OCC.Core.GeomConvert import *
 
 
 # # -------------database -------------

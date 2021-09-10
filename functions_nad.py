@@ -1,5 +1,6 @@
 import fiona
 import numpy as np
+import pyvista as pv
 import re
 
 from .boundingBox import BoundingBox
@@ -458,65 +459,383 @@ def run_boundary_check(all_storeys_elements, all_storeys_names, origin_pt, true_
     return boundary_check
 
 
-"""
-guidelines = {
-    'Boompjes': 5,
-    'Hertekade': 10
-}
-"""
-# x = run_overhang_check("/home/jordi/GitHub/ifc-pipeline/testdata/ifc/160035-Boompjes_TVA_gevel_rv19_p.v_georef.ifc", guidelines)
-
-'''polya = Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])
-polyb = Polygon([(0.5, 0.5), (0.5, 0.8), (0.8, 0.8), (0.8, 0.5)])
-#check_boundary(polya, polyb)
-
-polyc = Polygon([(0.5, 0.5), (0.5, 1.5), (1.5, 1.5), (1.5, 0.5)])
-#check_boundary(polya, polyc)
-
-# geom_roads, name_roads = shapefile_to_shapely_roads("external_datasets/Wegvakonderdelen.shp")
-
-# height_file = 'external_datasets/UitgiftePeilen/Peil_punten.shp'
-# reference_points = read_height_points(height_file)
-
-"""test_points = {
-    24: Point([0, 0]),
-    34: Point([1, 1]),
-    44: Point([2, 2])
-}
-
-query_test = get_close_roads(test_points, polyc, 1)"""
-
-# dummy case
-box = BoundingBox(0, 2, 0, 1, 2, 5)
-parcel = Polygon([(-1, 0.25), (3, 0.25), (3, 0.75), (-1, 0.75), (-1, 0.25)])
-road_list = {
-    0: Polygon([(-5, -3), (10, -3), (10, -2), (-5, -2), (-5, -3)]),
-    1: Polygon([(-5, 3), (10, 3), (10, 4), (-5, 4), (-5, 3)])
-}
-name_list = {
-    0: 'Boompjes',
-    1: 'Hertekade'
-}
-guidelines = {
-    'Boompjes': 0.5,
-    'Hertekade': 0.2
-}
-query_test = get_close_roads(road_list, polyc)
-
-sides_roads = side_to_road(road_list, box)
-check = check_overhang(parcel, sides_roads, box.vertical_sides, name_list, guidelines)
-for road in check.keys():
-    print(road)
-    print('\t' + check[road][0])
-    print('\t' + check[road][1])
-    print('\t' + check[road][2])
-
-rogue_sides = get_geometry_unchecked_sides(box, sides_roads)
-plot_opaque_cube(0, 0, 2, 2, 1, 5, parcel, box, sides_roads, check, name_list)'''
+def get_tetra_volume(tetrapts):
+    pts_num = tetrapts.shape[0]
+    c_d = np.reshape((tetrapts[:, [2]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    b_d = np.reshape((tetrapts[:, [1]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    a_d = np.reshape((tetrapts[:, [0]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    cross = np.cross(b_d, c_d)
+    dot = np.einsum("ij,ij->i", a_d, cross)
+    return np.absolute(np.array(dot)) / 6
 
 
-"""ifc_file = ifcopenshell.open('external_datasets/160035-Boompjes_TVA_gevel_rv19_p.v_georef.ifc')
-ifc_elem = functions.GetElementsByStorey(ifc_file)[0][0]
-ifc_elem_geom = functions.CreateShape(ifc_elem)[0]
-ifc_brep = ifc_elem_geom.brep_data"""
-print('Done')
+def get_tetra_surface(tetrapts):
+    pts_num = tetrapts.shape[0]
+    c_d = np.reshape((tetrapts[:, [2]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    b_d = np.reshape((tetrapts[:, [1]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    a_d = np.reshape((tetrapts[:, [0]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    a_c = np.reshape((tetrapts[:, [0]] - tetrapts[:, [2]]).flatten(), (pts_num, 3))
+    b_c = np.reshape((tetrapts[:, [1]] - tetrapts[:, [2]]).flatten(), (pts_num, 3))
+    tr_00 = 0.5 * np.linalg.norm(np.cross(a_c, b_c), axis=-1)
+    tr_01 = 0.5 * np.linalg.norm(np.cross(a_d, b_d), axis=-1)
+    tr_02 = 0.5 * np.linalg.norm(np.cross(a_d, c_d), axis=-1)
+    tr_03 = 0.5 * np.linalg.norm(np.cross(b_d, c_d), axis=-1)
+    return tr_00 + tr_01 + tr_02 + tr_03
+
+
+def get_edges_distance(tetrapts):
+    pts_num = tetrapts.shape[0]
+    c_d = np.reshape((tetrapts[:, [2]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    b_d = np.reshape((tetrapts[:, [1]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    a_d = np.reshape((tetrapts[:, [0]] - tetrapts[:, [3]]).flatten(), (pts_num, 3))
+    a_c = np.reshape((tetrapts[:, [0]] - tetrapts[:, [2]]).flatten(), (pts_num, 3))
+    b_c = np.reshape((tetrapts[:, [1]] - tetrapts[:, [2]]).flatten(), (pts_num, 3))
+    a_b = np.reshape((tetrapts[:, [0]] - tetrapts[:, [1]]).flatten(), (pts_num, 3))
+    c_d_length = np.linalg.norm(c_d, axis=-1)
+    b_d_length = np.linalg.norm(b_d, axis=-1)
+    a_d_length = np.linalg.norm(a_d, axis=-1)
+    a_c_length = np.linalg.norm(a_c, axis=-1)
+    b_c_length = np.linalg.norm(b_c, axis=-1)
+    a_b_length = np.linalg.norm(a_b, axis=-1)
+    result = np.sqrt((((c_d_length * a_b_length) + (b_d_length * a_c_length) + (a_d_length * b_c_length)) *
+                      ((c_d_length * a_b_length) + (b_d_length * a_c_length) - (a_d_length * b_c_length)) *
+                      ((c_d_length * a_b_length) - (b_d_length * a_c_length) + (a_d_length * b_c_length)) *
+                      (-(c_d_length * a_b_length) + (b_d_length * a_c_length) + (a_d_length * b_c_length))))
+    return result
+
+
+def get_alpha_shape_3d(pts, alpha):
+    epsilon = 10 ** (-3)
+    # pts = np.unique(pts, axis=0)
+    # get all 3D Delaunay triangles
+    tetra = Delaunay(pts, incremental=True)
+    # get tetrahedrals, volume and edges distance
+    tetrapts = np.take(tetra.points, tetra.vertices, axis=0)
+    volume = get_tetra_volume(tetrapts)
+    # get the circumradii of non-flat tetrahedral by masking where volume < epsilon
+    edges = get_edges_distance(tetrapts)
+    r = np.ma.masked_where(volume < epsilon, edges) / (24 * np.ma.masked_where(volume < epsilon, volume))
+
+    # tetrahedrals
+    chosen_tetras = np.where(r < alpha)
+    tetras = tetra.vertices[chosen_tetras]
+    # fix tetrahedrals orientation
+    chosen_tetrapts = np.take(tetra.points, tetras, axis=0)
+    base = chosen_tetrapts[:, [0, 1, 2]]
+    apex = chosen_tetrapts[:, 3]
+    normal_base = np.cross((base[:, 1] - base[:, 0]), (base[:, 2] - base[:, 0]))
+    apex_vertex = apex - base[:, 0]
+    dot_product = np.einsum("ij,ij->i", normal_base, apex_vertex)
+    correct_tetras = np.where(dot_product < 0)
+    flipped_tetras = np.where(dot_product > 0)
+    # triangles
+    tricomb_correct = np.array([(0, 1, 2), (1, 0, 3), (0, 2, 3), (2, 1, 3)])
+    triangles_correct = tetras[correct_tetras][:, tricomb_correct].reshape(-1, 3)
+    tricomb_flipped = np.array([(0, 2, 1), (0, 1, 3), (2, 0, 3), (1, 2, 3)])
+    triangles_flipped = tetras[flipped_tetras][:, tricomb_flipped].reshape(-1, 3)
+    triangles = np.concatenate((triangles_correct, triangles_flipped), axis=0)
+    triangles_sorted = np.sort(triangles, axis=1)
+    # Remove triangles that occurs twice, because they are within shapes
+    trianglesdict = defaultdict(int)
+    for tri in triangles_sorted:
+        trianglesdict[tuple(tri)] += 1
+    final_triangles = []
+    for tri in triangles:
+        possible_tris = ((tri[0], tri[1], tri[2]), (tri[0], tri[2], tri[1]), (tri[1], tri[0], tri[2]),
+                         (tri[1], tri[2], tri[0]), (tri[2], tri[0], tri[1]), (tri[2], tri[1], tri[0]))
+        for p_tri in possible_tris:
+            if trianglesdict[p_tri] and trianglesdict[p_tri] == 1:
+                final_triangles.append(tri)
+                break
+    final_triangles = np.array(final_triangles)
+    return tetra.points, final_triangles
+
+
+def populate_surface_with_points(face):
+    space = 1
+    face_x = face[:, 0]
+    div_x = (np.max(face_x) - np.min(face_x)) // space
+    face_y = face[:, 1]
+    div_y = (np.max(face_y) - np.min(face_y)) // space
+    face_z = face[:, 2]
+    div_z = (np.max(face_z) - np.min(face_z)) // space
+    if div_z == 0:
+        div_z = 1
+    x_ = np.linspace(np.min(face_x), np.max(face_x), int(div_x + 1))
+    y_ = np.linspace(np.min(face_y), np.max(face_y), int(div_y + 1))
+    z_ = np.linspace(np.min(face_z), np.max(face_z), int(div_z + 1))
+    x, y, z = np.meshgrid(x_, y_, z_)
+    x = x.reshape((np.prod(x.shape),))
+    y = y.reshape((np.prod(y.shape),))
+    z = z.reshape((np.prod(z.shape),))
+    return list(zip(x, y, z))
+
+
+def get_elements_surfaces_points(ifc_elements):
+    settings = ifcopenshell.geom.settings()
+    settings.set(settings.USE_PYTHON_OPENCASCADE, True)
+    settings.set(settings.USE_WORLD_COORDS, True)
+    points_on_faces = []
+    if isinstance(ifc_elements, list):
+        print("load ifc elements list")
+        for element in ifc_elements:
+            if element.Representation:
+                shape = ifcopenshell.geom.create_shape(settings, element)
+                exp_face = OCC.Core.TopExp.TopExp_Explorer(shape.geometry, OCC.Core.TopAbs.TopAbs_FACE)
+                while exp_face.More():
+                    face = OCC.Core.TopoDS.topods_Face(exp_face.Current())
+                    face_nurbs_converter = OCC.Core.BRepBuilderAPI.BRepBuilderAPI_NurbsConvert(face)
+                    face_nurbs_converter.Perform(face)
+                    nurbs_face = face_nurbs_converter.Shape()
+                    brep_face = BRep_Tool.Surface(OCC.Core.TopoDS.topods_Face(nurbs_face))
+                    bspline_face = geomconvert_SurfaceToBSplineSurface(brep_face)
+                    # extract the Control Points of each face
+                    n_poles_u = bspline_face.NbUPoles()
+                    n_poles_v = bspline_face.NbVPoles()
+                    control_polygon_coordinates = np.zeros(
+                        shape=(n_poles_u * n_poles_v, 3)
+                    )
+                    # cycle over the poles to get their coordinates
+                    i = 0
+                    for pole_u_direction in range(n_poles_u):
+                        for pole_v_direction in range(n_poles_v):
+                            control_point_coordinates = bspline_face.Pole(
+                                pole_u_direction + 1, pole_v_direction + 1
+                            )
+                            control_polygon_coordinates[i, :] = [control_point_coordinates.X(),
+                                                                 control_point_coordinates.Y(),
+                                                                 control_point_coordinates.Z()]
+                            i += 1
+                    populated_face = populate_surface_with_points(control_polygon_coordinates)
+                    points_on_faces = points_on_faces + populated_face
+                    exp_face.Next()
+            else:
+                print(str(element.id()) + "No Rrepresentation")
+    else:
+        if ifc_elements.Representation:
+            shape = ifcopenshell.geom.create_shape(settings, ifc_elements)
+            exp_face = OCC.Core.TopExp.TopExp_Explorer(shape.geometry, OCC.Core.TopAbs.TopAbs_FACE)
+            while exp_face.More():
+                face = OCC.Core.TopoDS.topods_Face(exp_face.Current())
+                face_nurbs_converter = OCC.Core.BRepBuilderAPI.BRepBuilderAPI_NurbsConvert(face)
+                face_nurbs_converter.Perform(face)
+                nurbs_face = face_nurbs_converter.Shape()
+                brep_face = BRep_Tool.Surface(OCC.Core.TopoDS.topods_Face(nurbs_face))
+                bspline_face = geomconvert_SurfaceToBSplineSurface(brep_face)
+                # extract the Control Points of each face
+                n_poles_u = bspline_face.NbUPoles()
+                n_poles_v = bspline_face.NbVPoles()
+                control_polygon_coordinates = np.zeros(
+                    shape=(n_poles_u * n_poles_v, 3)
+                )
+                # cycle over the poles to get their coordinates
+                i = 0
+                for pole_u_direction in range(n_poles_u):
+                    for pole_v_direction in range(n_poles_v):
+                        control_point_coordinates = bspline_face.Pole(
+                            pole_u_direction + 1, pole_v_direction + 1
+                        )
+                        control_polygon_coordinates[i, :] = [control_point_coordinates.X(),
+                                                             control_point_coordinates.Y(),
+                                                             control_point_coordinates.Z()]
+                        i += 1
+                populated_face = populate_surface_with_points(control_polygon_coordinates)
+                points_on_faces = points_on_faces + populated_face
+                exp_face.Next()
+        else:
+            print(str(ifc_elements.id()) + "No Rrepresentation")
+    return points_on_faces
+
+
+def get_boundary_z_min_z_max_no_georef(elements):
+    lst_x, lst_y, lst_z = GetAllCoordinates(elements)
+    points_2d = np.array(list(zip(lst_x, lst_y)))
+    obb_2d = GetNumpyOBB(points_2d, show_plot=False)
+    z_min = min(lst_z)
+    z_max = max(lst_z)
+    bb_2d = [(min(lst_x), min(lst_y)), (max(lst_x), min(lst_y)), (max(lst_x), max(lst_y)), (min(lst_x), max(lst_y))]
+    if Polygon(obb_2d).area > Polygon(bb_2d).area:
+        return bb_2d, z_min, z_max
+    else:
+        return obb_2d, z_min, z_max
+
+
+def face_to_road(roads, origin_normal, extension):
+    """
+    get respective road of a face
+    input:
+    roads: dictionary of Polygons
+    normal_face: np.array(x, y, z)
+    origin_normal: np.array(x, y, z)
+    output:
+    face and its respective road
+    """
+    # change normal to shapely LineString
+    normal = LineString([origin_normal, extension])
+    distance_to_road = 0
+    normal_to_road = None
+    for road_id in roads.keys():
+        road = roads[road_id]
+        if normal.intersects(road):
+            # if the normal is too short it might not intersect the road find a better a way ensure direction of
+            # normal
+            line_intersection = normal.intersection(road)
+            if line_intersection.type == "MultiLineString":
+                for line in line_intersection:
+                    points_intersection = list(line.coords)
+                    points_of_normal = list(normal.coords)
+                    pt0 = np.array(points_of_normal[0])
+                    pt1 = np.array(points_of_normal[1])
+                    for point in points_intersection:
+                        pt_intersection = np.array(point)
+                        # make sure it is pointing away from the bounding box
+                        v0 = pt1 - pt0
+                        v1 = pt_intersection - pt0
+                        check_alignment = np.dot(v0, v1)
+                        if check_alignment > 0:
+                            # choose closest point
+                            dist = np.linalg.norm(v1)
+                            if distance_to_road == 0:
+                                normal_to_road = road_id
+                                distance_to_road = dist
+                            elif dist < distance_to_road:
+                                normal_to_road = road_id
+                                distance_to_road = dist
+            else:
+                points_intersection = list(line_intersection.coords)
+                points_of_normal = list(normal.coords)
+                pt0 = np.array(points_of_normal[0])
+                pt1 = np.array(points_of_normal[1])
+                for point in points_intersection:
+                    pt_intersection = np.array(point)
+                    # make sure it is pointing away from the bounding box
+                    v0 = pt1 - pt0
+                    v1 = pt_intersection - pt0
+                    check_alignment = np.dot(v0, v1)
+                    if check_alignment > 0:
+                        # choose closest point
+                        dist = np.linalg.norm(v1)
+                        if distance_to_road == 0:
+                            normal_to_road = road_id
+                            distance_to_road = dist
+                        elif dist < distance_to_road:
+                            normal_to_road = road_id
+                            distance_to_road = dist
+    return normal_to_road
+
+
+def run_overhang_check_alpha_shape(guidelines, all_storeys_elements, all_storeys_names, origin_pt, true_n, storey_number):
+    e = 10**(-8)
+    # get roads guidelines
+    guide_lines = guidelines
+    # get GF 2d to later get the roads
+    gf_floor_idx = get_gf_floor_idx(all_storeys_names)
+    gf, z_min, z_max = get_boundary_z_min_z_max_no_georef(all_storeys_elements[gf_floor_idx])
+    lst_x_last, lst_y_last, lst_z_last = GetAllCoordinates(all_storeys_elements[-1])
+    lst_z_max = max(lst_z_last)
+    gf = Polygon(gf)
+    # get GF 2d for pyvista extrude
+    points_2d = np.array(list(zip(*gf.exterior.coords.xy)))[:-1]
+    size_points_2d = points_2d.shape[0]
+    temp_array = np.full((size_points_2d, 1), z_min)
+    points_3d = np.concatenate((points_2d, temp_array), axis=1)
+    face = [size_points_2d + 1] + list(range(size_points_2d)) + [0]  # cell connectivity for a single cell
+    polygon = pv.PolyData(points_3d, faces=face)
+
+    # extrude along z
+    gf_extruded = polygon.extrude((0, 0, (lst_z_max + 10)))
+    gf_extruded.compute_normals(cell_normals=True, point_normals=True, flip_normals=True, inplace=True)
+    # the definition of faces from a pv mesh is in a certain way, transform it into a dictionary
+    point_on_faces = []
+    center_faces = []
+    idx = 0
+    counter = 0
+    for i, element in enumerate(gf_extruded.faces):
+        if idx == 0:
+            idx = element
+            counter += element + 1
+            continue
+        if i - counter + 1 == 0:
+            idx = 0
+            point_on_faces.append(gf_extruded.points[element])
+            face_center = (gf_extruded.points[element] + gf_extruded.points[gf_extruded.faces[i-1]]
+                           + gf_extruded.points[gf_extruded.faces[i-2]]) / 3
+            center_faces.append(face_center)
+
+    # Get the parcel of project
+    georef_gf, z_min, z_max = get_boundary_z_min_z_max(all_storeys_elements[gf_floor_idx], origin_pt, true_n)
+    georef_gf = Polygon(georef_gf)
+    georef_centroid_gf = georef_gf.centroid
+    parcels = shapefile_to_shapely_parcels("/www/models-preloaded/BRK_SelectieCentrum.shp")
+    parcel = get_parcel(georef_centroid_gf, parcels)
+
+    # roads
+    geom_roads, name_roads = shapefile_to_shapely_roads("/www/models-preloaded/Wegvakonderdelen.shp")
+    close_roads = get_close_roads(geom_roads, georef_gf)
+    # get roads to test against
+    query_parcel = parcel.buffer(1)  # 1 m buffer around parcel can be other value
+    adjacent_roads = {}
+    for i, road in close_roads.items():
+        if query_parcel.intersects(road):
+            adjacent_roads[i] = road
+
+    # filter point faces, horizontal faces, and faces with no roads
+    sides_roads = {}
+    for k, normal in enumerate(gf_extruded.face_normals):
+        if -e <= normal[0] <= e and -e <= normal[1] <= e:
+            pass
+        else:
+            origin = center_faces[k]
+            extension = origin + normal
+            georef_origin = get_georeferenced_point(origin, origin_pt, true_n)
+            georef_extension = get_georeferenced_point(extension, origin_pt, true_n)
+            face_link_road = face_to_road(adjacent_roads, georef_centroid_gf, georef_extension)
+            if face_link_road is None:
+                pass
+            else:
+                sides_roads[k] = name_roads[face_link_road]
+
+    # Remove the underground floors and GF from the list of floors OR get designated floor number
+    first_floor_idx = get_first_floor_idx(all_storeys_names)
+    all_storeys_elements = all_storeys_elements[first_floor_idx:]
+    all_storeys_names = all_storeys_names[first_floor_idx:]
+    if storey_number is not None:
+        all_storeys_elements = [all_storeys_elements[storey_number - 1]]
+        all_storeys_names = all_storeys_names[storey_number - 1]
+
+    lst_all_checks = []
+    i = 0
+    for storey_elements in all_storeys_elements:
+        storey_points = np.array(get_elements_surfaces_points(storey_elements))
+        storey_pts, storey_alpha_tris = get_alpha_shape_3d(storey_points, 2)
+        storey_size = storey_alpha_tris.shape[0]
+        storey_temp_array = np.full((storey_size, 1), 3)
+        storey_faces = np.hstack(np.concatenate((storey_temp_array, storey_alpha_tris), axis=1))
+
+        storey_mesh = pv.PolyData(storey_pts, storey_faces)
+        check = {}
+        for j, road_name in sides_roads.items():
+            origin = point_on_faces[j]
+            normal = gf_extruded.face_normals[j]
+            clipped = storey_mesh.clip(normal=normal, origin=origin, invert=False)
+            admissible_overhang = guide_lines[road_name]
+            if clipped.n_points == 0:
+                check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
+                                    "Overhang: " + "No overhang")
+            else:
+                points_size = len(clipped.points)
+                normal_temp_array = np.full((points_size, 3), normal)
+                origin_temp_array = np.full((points_size, 3), origin)
+                temp_vector = clipped.points - origin_temp_array
+                dist_to_plane = np.einsum("ij,ij->i", temp_vector, normal_temp_array)
+                dist_to_check = np.amax(dist_to_plane)
+                # wkt_mesh = pv.save_meshio("mesh{0}{1}.wkt".format(j, i), clipped)
+                if admissible_overhang > dist_to_check:
+                    check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
+                                        "Overhang: " + str(dist_to_check))
+                else:
+                    check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
+                                        "Overhang: " + str(dist_to_check))
+        lst_all_checks.append(check)
+        i += 1
+    return lst_all_checks
