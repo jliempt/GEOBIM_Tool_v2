@@ -804,10 +804,14 @@ def run_overhang_check_alpha_shape(guidelines, all_storeys_elements, all_storeys
         all_storeys_names = all_storeys_names[storey_number - 1]
 
     lst_all_checks = []
+    lst_all_points = []
+    lst_all_triangles = []
     i = 0
     for storey_elements in all_storeys_elements:
         storey_points = np.array(get_elements_surfaces_points(storey_elements))
         storey_pts, storey_alpha_tris = get_alpha_shape_3d(storey_points, 2)
+        lst_all_points.append(storey_pts.tolist())
+        lst_all_triangles.append(storey_alpha_tris.tolist())
         storey_size = storey_alpha_tris.shape[0]
         storey_temp_array = np.full((storey_size, 1), 3)
         storey_faces = np.hstack(np.concatenate((storey_temp_array, storey_alpha_tris), axis=1))
@@ -829,13 +833,18 @@ def run_overhang_check_alpha_shape(guidelines, all_storeys_elements, all_storeys
                 temp_vector = clipped.points - origin_temp_array
                 dist_to_plane = np.einsum("ij,ij->i", temp_vector, normal_temp_array)
                 dist_to_check = np.amax(dist_to_plane)
-                # wkt_mesh = pv.save_meshio("mesh{0}{1}.wkt".format(j, i), clipped)
+                filename = "mesh{0}{1}.wkt".format(j, i)
+                pv.save_meshio(filename, clipped)
+                with open(filename, "r") as f:
+                    wkt = f.read()
+                    
                 if admissible_overhang > dist_to_check:
                     check[road_name] = ("Pass", "Admissible overhang: " + str(admissible_overhang),
-                                        "Overhang: " + str(dist_to_check))
+                                        "Overhang: " + str(dist_to_check), wkt)
                 else:
                     check[road_name] = ("Fail", "Admissible overhang: " + str(admissible_overhang),
-                                        "Overhang: " + str(dist_to_check))
+                                        "Overhang: " + str(dist_to_check), wkt)
         lst_all_checks.append(check)
         i += 1
-    return {"all_checks" : lst_all_checks}
+
+    return {"all_checks" : lst_all_checks, "all_points": lst_all_points, "all_triangles": lst_all_triangles}
