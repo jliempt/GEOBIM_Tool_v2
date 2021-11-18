@@ -140,8 +140,8 @@ class analyser():
                                  self.direction, floor_number)
         return res
 
-    def overhangRoadsAlphaShape(self, guidelines, floor_number=None):
-        res = run_overhang_check_alpha_shape(guidelines, self.floor_elements_lst, self.floor_name_lst, self.location,
+    def overhangRoadsAlphaShape(self, guidelines, alpha, floor_number=None):
+        res = run_overhang_check_alpha_shape(guidelines, alpha, self.floor_elements_lst, self.floor_name_lst, self.location,
                                              self.direction, floor_number)
         return res
 
