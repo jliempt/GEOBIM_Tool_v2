@@ -809,7 +809,7 @@ def run_overhang_check_alpha_shape(guidelines, all_storeys_elements, all_storeys
     i = 0
     for storey_elements in all_storeys_elements:
         storey_points = np.array(get_elements_surfaces_points(storey_elements))
-        storey_pts, storey_alpha_tris = get_alpha_shape_3d(storey_points, 2)
+        storey_pts, storey_alpha_tris = get_alpha_shape_3d(storey_points, 20)
         lst_all_points.append(storey_pts.tolist())
         lst_all_triangles.append(storey_alpha_tris.tolist())
         storey_size = storey_alpha_tris.shape[0]
